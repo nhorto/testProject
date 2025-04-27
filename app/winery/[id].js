@@ -1,5 +1,5 @@
-// app/winery/[id].js (Enhanced Winery Detail Page with Visit Logging)
-import React, { useState, useEffect } from 'react';
+// app/winery/[id].js
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,53 +10,67 @@ import {
   Image,
   Alert,
   KeyboardAvoidingView,
-  Platform
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import wineries from '../../data/wineries_with_coordinates_and_id.json';
 import * as ImagePicker from 'expo-image-picker';
+import { Picker } from '@react-native-picker/picker';
+
+// 🆕 Import your components!
+import RatingSlider from '../../components/RatingSlider';
+import FlavorTagSelector from '../../components/FlavorTagSelector';
+
+const WINE_TYPES = [
+  'Red', 'White', 'Rosé', 'Sparkling', 'Dessert',
+  'Red Blend', 'White Blend', 'Orange'
+];
 
 export default function WineryDetail() {
   const { id, log } = useLocalSearchParams();
   const router = useRouter();
-  
-  // Convert the wineries data to more accessible format
+
   const wineriesArray = wineries;
-  
-  // Find the selected winery
-  const winery = wineriesArray.find(w => w.id.toString() === id.toString());
-  
-  // Form state for logging a visit
+  const winery = wineriesArray.find((w) => w.id.toString() === id.toString());
+
   const [showLogForm, setShowLogForm] = useState(log === 'true');
-  const [ratings, setRatings] = useState({
-    sweetness: '',
-    tannins: '',
-    alcohol: '',
-  });
-  const [winesTried, setWinesTried] = useState('');
+  const [winesTried, setWinesTried] = useState([
+    {
+      wineName: '',
+      wineType: 'Red',
+      wineYear: '',
+      flavorNotes: [],
+      wineRatings: {
+        sweetness: '',
+        tannin: '',
+        acidity: '',
+        body: '',
+        alcohol: '',
+      },
+      overallRating: 0,
+      additionalNotes: '',
+    },
+  ]);
+  const [currentWineIndex, setCurrentWineIndex] = useState(0); // 🆕 New State!
   const [additionalNotes, setAdditionalNotes] = useState('');
   const [visitDate, setVisitDate] = useState(new Date().toISOString().split('T')[0]);
   const [photo, setPhoto] = useState(null);
 
-  // Function to pick an image
   const pickImage = async () => {
     try {
-      // Request permission
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
       if (status !== 'granted') {
         Alert.alert('Permission Denied', 'We need camera roll permission to upload photos.');
         return;
       }
-      
-      // Launch image library
+
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         quality: 1,
       });
-      
+
       if (!result.canceled) {
         setPhoto(result.assets[0].uri);
       }
@@ -65,26 +79,43 @@ export default function WineryDetail() {
     }
   };
 
+  const addNewWine = () => {
+    setWinesTried((prevWines) => [
+      ...prevWines,
+      {
+        wineName: '',
+        wineType: 'Red',
+        wineYear: '',
+        flavorNotes: [],
+        wineRatings: {
+          sweetness: '',
+          tannin: '',
+          acidity: '',
+          body: '',
+          alcohol: '',
+        },
+        overallRating: 0,
+        additionalNotes: '',
+      },
+    ]);
+    setCurrentWineIndex(winesTried.length); // Move to new wine form
+  };
+
   const handleSave = () => {
-    // Here you would save the data to your backend or local storage
-    // For now, we'll just show an alert
-    Alert.alert(
-      'Visit Logged',
-      `Your visit to ${winery.name} has been saved!`,
-      [{ text: 'OK', onPress: () => setShowLogForm(false) }]
-    );
-    
-    // In a real app, you would save the data:
-    // const visitData = {
-    //   wineryId: winery.id,
-    //   wineryName: winery.name,
-    //   date: visitDate,
-    //   winesTried,
-    //   ratings,
-    //   additionalNotes,
-    //   photoUri: photo,
-    // };
-    // saveVisitToStorage(visitData);
+    const visitData = {
+      wineryId: winery.id,
+      wineryName: winery.name,
+      date: visitDate,
+      winesTried,
+      additionalNotes,
+      photoUri: photo,
+    };
+
+    console.log('Saving visit:', visitData);
+
+    Alert.alert('Visit Logged', `Your visit to ${winery.name} has been saved!`, [
+      { text: 'OK', onPress: () => setShowLogForm(false) },
+    ]);
   };
 
   if (!winery) {
@@ -95,44 +126,37 @@ export default function WineryDetail() {
     );
   }
 
+  const wine = winesTried[currentWineIndex]; // 🎯 Only show one wine at a time
+
   return (
-    <KeyboardAvoidingView 
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.container}>
-        {/* Winery Details Section */}
         {!showLogForm && (
           <View style={styles.detailsContainer}>
             <Text style={styles.title}>{winery.name}</Text>
             <Text style={styles.address}>{winery.address}</Text>
-            
+
             <View style={styles.divider} />
-            
+
             <View style={styles.actionButtons}>
-              <TouchableOpacity 
-                style={styles.actionButton} 
-                onPress={() => setShowLogForm(true)}
-              >
+              <TouchableOpacity style={styles.actionButton} onPress={() => setShowLogForm(true)}>
                 <Ionicons name="wine" size={24} color="#8E2DE2" />
                 <Text style={styles.actionButtonText}>Log Your Visit</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => {
-                  // In a real app, you might open directions in maps
                   Alert.alert('Navigation', 'Opening directions...');
                 }}
               >
                 <Ionicons name="navigate" size={24} color="#8E2DE2" />
                 <Text style={styles.actionButtonText}>Directions</Text>
               </TouchableOpacity>
-              
-              <TouchableOpacity 
+
+              <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => {
-                  // In a real app, you might open the winery's website
                   Alert.alert('Website', `Opening ${winery.name} website...`);
                 }}
               >
@@ -140,16 +164,13 @@ export default function WineryDetail() {
                 <Text style={styles.actionButtonText}>Website</Text>
               </TouchableOpacity>
             </View>
-            
-            {/* Here you could add additional sections like reviews, photos, etc. */}
           </View>
         )}
-        
-        {/* Log Visit Form */}
+
         {showLogForm && (
           <View style={styles.formContainer}>
             <Text style={styles.header}>Log your visit to {winery.name}</Text>
-            
+
             <Text style={styles.label}>Visit Date:</Text>
             <TextInput
               style={styles.input}
@@ -157,67 +178,131 @@ export default function WineryDetail() {
               value={visitDate}
               onChangeText={setVisitDate}
             />
-            
-            <Text style={styles.label}>Wines Tried:</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter the wines you tried"
-              value={winesTried}
-              onChangeText={setWinesTried}
-            />
 
-            <Text style={styles.label}>Rate Sweetness (0-5):</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0-5"
-              keyboardType="numeric"
-              value={ratings.sweetness}
-              onChangeText={(value) =>
-                setRatings((prev) => ({ ...prev, sweetness: value }))
-              }
-            />
+            {/* Single Wine Form */}
+            <View style={styles.singleWineForm}>
+              <Text style={styles.subHeader}>Wine #{currentWineIndex + 1}</Text>
 
-            <Text style={styles.label}>Rate Tannins (0-5):</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0-5"
-              keyboardType="numeric"
-              value={ratings.tannins}
-              onChangeText={(value) =>
-                setRatings((prev) => ({ ...prev, tannins: value }))
-              }
-            />
+              <Text style={styles.label}>Wine Name:</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter the wine name"
+                value={wine.wineName}
+                onChangeText={(text) => {
+                  const updatedWines = [...winesTried];
+                  updatedWines[currentWineIndex].wineName = text;
+                  setWinesTried(updatedWines);
+                }}
+              />
 
-            <Text style={styles.label}>Rate Alcohol (0-5):</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0-5"
-              keyboardType="numeric"
-              value={ratings.alcohol}
-              onChangeText={(value) =>
-                setRatings((prev) => ({ ...prev, alcohol: value }))
-              }
-            />
+              <Text style={styles.label}>Wine Type:</Text>
+              <View style={styles.pickerContainer}>
+                <Picker
+                  selectedValue={wine.wineType}
+                  onValueChange={(itemValue) => {
+                    const updatedWines = [...winesTried];
+                    updatedWines[currentWineIndex].wineType = itemValue;
+                    setWinesTried(updatedWines);
+                  }}
+                >
+                  {WINE_TYPES.map((type) => (
+                    <Picker.Item label={type} value={type} key={type} />
+                  ))}
+                </Picker>
+              </View>
 
-            <Text style={styles.label}>Additional Notes:</Text>
-            <TextInput
-              style={[styles.input, styles.multilineInput]}
-              placeholder="Write any additional comments..."
-              value={additionalNotes}
-              onChangeText={setAdditionalNotes}
-              multiline
-              numberOfLines={4}
-            />
+              <Text style={styles.label}>Wine Year:</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter wine year"
+                keyboardType="numeric"
+                value={wine.wineYear}
+                onChangeText={(text) => {
+                  const updatedWines = [...winesTried];
+                  updatedWines[currentWineIndex].wineYear = text;
+                  setWinesTried(updatedWines);
+                }}
+              />
 
+              <FlavorTagSelector
+                selectedTags={wine.flavorNotes}
+                onTagsChange={(tags) => {
+                  const updatedWines = [...winesTried];
+                  updatedWines[currentWineIndex].flavorNotes = tags;
+                  setWinesTried(updatedWines);
+                }}
+              />
+
+              {['sweetness', 'tannin', 'acidity', 'body', 'alcohol'].map((attribute) => (
+                <View key={attribute} style={{ marginBottom: 15 }}>
+                  <RatingSlider
+                    label={attribute.charAt(0).toUpperCase() + attribute.slice(1)}
+                    value={parseFloat(wine.wineRatings[attribute]) || 0}
+                    onValueChange={(value) => {
+                      const updatedWines = [...winesTried];
+                      updatedWines[currentWineIndex].wineRatings[attribute] = value.toString();
+                      setWinesTried(updatedWines);
+                    }}
+                    showStars={false}
+                  />
+                  <TextInput
+                    style={styles.smallInput}
+                    keyboardType="numeric"
+                    value={wine.wineRatings[attribute]}
+                    onChangeText={(text) => {
+                      const updatedWines = [...winesTried];
+                      updatedWines[currentWineIndex].wineRatings[attribute] = text;
+                      setWinesTried(updatedWines);
+                    }}
+                    placeholder="Type value"
+                  />
+                </View>
+              ))}
+
+              <RatingSlider
+                label="Overall Rating"
+                value={wine.overallRating}
+                onValueChange={(value) => {
+                  const updatedWines = [...winesTried];
+                  updatedWines[currentWineIndex].overallRating = value;
+                  setWinesTried(updatedWines);
+                }}
+                showStars={true}
+              />
+            </View>
+
+            {/* Switch between Wines */}
+            <View style={styles.switchWineButtons}>
+              <TouchableOpacity
+                disabled={currentWineIndex === 0}
+                onPress={() => setCurrentWineIndex(currentWineIndex - 1)}
+              >
+                <Text style={styles.switchWineText}>⬅️ Previous Wine</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                disabled={currentWineIndex === winesTried.length - 1}
+                onPress={() => setCurrentWineIndex(currentWineIndex + 1)}
+              >
+                <Text style={styles.switchWineText}>Next Wine ➡️</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Add New Wine */}
+            <TouchableOpacity style={styles.addWineButton} onPress={addNewWine}>
+              <Ionicons name="add-circle" size={24} color="#8E2DE2" style={{ marginRight: 8 }} />
+              <Text style={styles.addWineButtonText}>Add Another Wine</Text>
+            </TouchableOpacity>
+
+            {/* Photo Upload */}
             <TouchableOpacity style={styles.imagePicker} onPress={pickImage}>
               <Ionicons name="camera" size={24} color="#8E2DE2" style={{ marginRight: 8 }} />
               <Text>{photo ? 'Change Photo' : 'Add Photo'}</Text>
             </TouchableOpacity>
-            
-            {photo && (
-              <Image source={{ uri: photo }} style={styles.imagePreview} />
-            )}
 
+            {photo && <Image source={{ uri: photo }} style={styles.imagePreview} />}
+
+            {/* Save / Cancel */}
             <View style={styles.buttonContainer}>
               <TouchableOpacity style={styles.button} onPress={handleSave}>
                 <Text style={styles.buttonText}>Save</Text>
@@ -254,11 +339,13 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 8,
+    textAlign: 'center',
   },
   address: {
     fontSize: 16,
     color: '#555',
     marginBottom: 15,
+    textAlign: 'center',
   },
   divider: {
     height: 1,
@@ -281,11 +368,13 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     backgroundColor: '#fff',
+    marginBottom: 20,
   },
   header: {
-    fontSize: 20,
-    marginBottom: 20,
+    fontSize: 22,
     fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
   },
   label: {
     fontSize: 16,
@@ -304,6 +393,36 @@ const styles = StyleSheet.create({
   multilineInput: {
     height: 100,
     textAlignVertical: 'top',
+  },
+  singleWineForm: {
+    marginBottom: 30,
+  },
+  subHeader: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 15,
+    textAlign: 'center',
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 6,
+    backgroundColor: '#f9f9f9',
+    marginBottom: 10,
+  },
+  addWineButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f0f0f0',
+    padding: 15,
+    borderRadius: 6,
+    marginTop: 20,
+  },
+  addWineButtonText: {
+    fontSize: 16,
+    color: '#8E2DE2',
+    fontWeight: 'bold',
   },
   imagePicker: {
     marginTop: 20,
@@ -341,4 +460,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  switchWineButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginVertical: 20,
+  },
+  switchWineText: {
+    fontSize: 14,
+    color: '#8E2DE2',
+    fontWeight: 'bold',
+  },
+  smallInput: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#f9f9f9',
+    borderRadius: 6,
+    padding: 8,
+    fontSize: 14,
+    width: 80,
+    marginTop: 5,
+    alignSelf: 'center',
+    textAlign: 'center',
+  },
 });
+

@@ -1,257 +1,398 @@
+// components/FlavorTagSelector.js
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  ScrollView, 
+  TextInput 
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-// Some common flavor suggestions, but users can add their own
-const SUGGESTIONS = [
-  // Red wine flavors
-  'Cherry', 'Blackberry', 'Plum', 'Chocolate', 'Vanilla',
-  'Pepper', 'Cinnamon', 'Oak', 'Smoke', 'Leather',
-  
-  // White wine flavors
-  'Apple', 'Pear', 'Lemon', 'Honey', 'Butter',
-  'Floral', 'Mineral', 'Grass', 'Melon', 'Tropical',
-  
-  // General descriptors
-  'Tannic', 'Acidic', 'Full-bodied', 'Smooth', 'Rich',
-  'Crisp', 'Dry', 'Sweet', 'Balanced', 'Bold'
-];
+// Predefined flavor categories and notes
+const FLAVOR_CATEGORIES = {
+  'Fruit': [
+    'Apple', 'Pear', 'Peach', 'Apricot', 'Cherry', 'Plum', 'Strawberry', 
+    'Raspberry', 'Blackberry', 'Blueberry', 'Lemon', 'Orange', 'Grapefruit',
+    'Pineapple', 'Mango', 'Banana', 'Melon', 'Fig', 'Date', 'Raisin'
+  ],
+  'Floral & Herbal': [
+    'Rose', 'Violet', 'Lavender', 'Honeysuckle', 'Jasmine', 'Thyme', 
+    'Rosemary', 'Mint', 'Eucalyptus', 'Sage', 'Basil', 'Oregano'
+  ],
+  'Spice & Wood': [
+    'Cinnamon', 'Vanilla', 'Clove', 'Nutmeg', 'Black Pepper', 'White Pepper', 
+    'Licorice', 'Cedar', 'Oak', 'Sandalwood', 'Tobacco', 'Leather'
+  ],
+  'Earth & Mineral': [
+    'Forest Floor', 'Mushroom', 'Truffle', 'Wet Stone', 'Chalk', 'Slate', 
+    'Graphite', 'Flint', 'Clay', 'Petrol'
+  ],
+  'Other': [
+    'Honey', 'Caramel', 'Butterscotch', 'Toffee', 'Chocolate', 'Coffee', 
+    'Smoke', 'Toast', 'Butter', 'Cream', 'Bread', 'Yeast', 'Biscuit'
+  ]
+};
 
-export default function FlavorTagSelector({ selectedTags, onTagsChange }) {
-  const [newTag, setNewTag] = useState('');
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  
-  // Filter suggestions based on input
-  const filteredSuggestions = SUGGESTIONS.filter(tag => 
-    tag.toLowerCase().includes(newTag.toLowerCase()) && 
-    !selectedTags.includes(tag)
-  ).slice(0, 5); // Limit to 5 suggestions
-  
-  // Add a tag from suggestions or input
-  const addTag = (tag) => {
-    if (tag && !selectedTags.includes(tag)) {
-      const updatedTags = [...selectedTags, tag];
-      onTagsChange(updatedTags);
-      setNewTag('');
+const FlavorTagSelector = ({ selectedTags = [], onTagsChange }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState('Fruit');
+  const [customTag, setCustomTag] = useState('');
+  const [expandedCategories, setExpandedCategories] = useState({});
+
+  // Toggle a tag's selection status
+  const toggleTag = (tag) => {
+    if (selectedTags.includes(tag)) {
+      onTagsChange(selectedTags.filter(t => t !== tag));
+    } else {
+      onTagsChange([...selectedTags, tag]);
     }
   };
-  
-  // Remove a tag
-  const removeTag = (tagToRemove) => {
-    const updatedTags = selectedTags.filter(tag => tag !== tagToRemove);
-    onTagsChange(updatedTags);
+
+  // Add a custom tag
+  const addCustomTag = () => {
+    if (customTag.trim() !== '' && !selectedTags.includes(customTag.trim())) {
+      onTagsChange([...selectedTags, customTag.trim()]);
+      setCustomTag('');
+    }
   };
-  
+
+  // Toggle category expansion
+  const toggleCategory = (category) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
+
+  // Filter tags based on search query
+  const filterTags = () => {
+    if (!searchQuery.trim()) {
+      return FLAVOR_CATEGORIES;
+    }
+
+    const filtered = {};
+    const query = searchQuery.toLowerCase().trim();
+
+    Object.entries(FLAVOR_CATEGORIES).forEach(([category, tags]) => {
+      const matchingTags = tags.filter(tag => 
+        tag.toLowerCase().includes(query)
+      );
+      
+      if (matchingTags.length > 0) {
+        filtered[category] = matchingTags;
+      }
+    });
+
+    return filtered;
+  };
+
+  const filteredCategories = filterTags();
+
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>Flavor Notes</Text>
+      <Text style={styles.label}>Flavor Notes:</Text>
       
       {/* Selected Tags */}
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tagContainer}
+        style={styles.selectedTagsScroll}
+        contentContainerStyle={styles.selectedTagsContainer}
       >
-        {selectedTags.map(tag => (
-          <TouchableOpacity 
-            key={tag} 
-            style={styles.tag}
-            onPress={() => removeTag(tag)}
-          >
-            <Text style={styles.tagText}>{tag}</Text>
-            <Ionicons name="close-circle" size={16} color="#fff" style={styles.tagIcon} />
-          </TouchableOpacity>
-        ))}
+        {selectedTags.length === 0 ? (
+          <Text style={styles.noTagsText}>No flavor notes selected</Text>
+        ) : (
+          selectedTags.map((tag, index) => (
+            <TouchableOpacity 
+              key={index} 
+              style={styles.selectedTag}
+              onPress={() => toggleTag(tag)}
+            >
+              <Text style={styles.selectedTagText}>{tag}</Text>
+              <Ionicons name="close-circle" size={16} color="#8E2DE2" style={styles.removeIcon} />
+            </TouchableOpacity>
+          ))
+        )}
       </ScrollView>
       
-      {/* Input for new tags */}
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          value={newTag}
-          onChangeText={(text) => {
-            setNewTag(text);
-            setShowSuggestions(text.length > 0);
-          }}
-          placeholder="Add flavor notes (e.g., Cherry, Oak, etc.)"
-          onSubmitEditing={() => {
-            addTag(newTag);
-            setShowSuggestions(false);
-          }}
-        />
+      {/* Search and Custom Tag Input */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+          <Ionicons name="search" size={18} color="#8E2DE2" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search flavor notes..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery !== '' && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={18} color="#8E2DE2" />
+            </TouchableOpacity>
+          )}
+        </View>
         
-        {newTag.length > 0 && (
+        <View style={styles.customTagContainer}>
+          <TextInput
+            style={styles.customTagInput}
+            placeholder="Add custom flavor note..."
+            value={customTag}
+            onChangeText={setCustomTag}
+            onSubmitEditing={addCustomTag}
+          />
           <TouchableOpacity 
             style={styles.addButton}
-            onPress={() => {
-              addTag(newTag);
-              setShowSuggestions(false);
-            }}
+            onPress={addCustomTag}
+            disabled={customTag.trim() === ''}
           >
-            <Ionicons name="add-circle" size={24} color="#8E2DE2" />
+            <Ionicons 
+              name="add-circle" 
+              size={24} 
+              color={customTag.trim() === '' ? '#ccc' : '#8E2DE2'} 
+            />
           </TouchableOpacity>
-        )}
+        </View>
       </View>
       
-      {/* Suggestions */}
-      {showSuggestions && filteredSuggestions.length > 0 && (
-        <View style={styles.suggestions}>
-          {filteredSuggestions.map(suggestion => (
+      {/* Category Tabs */}
+      {!searchQuery && (
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={styles.categoryTabsScroll}
+        >
+          {Object.keys(FLAVOR_CATEGORIES).map((category) => (
             <TouchableOpacity
-              key={suggestion}
-              style={styles.suggestion}
-              onPress={() => {
-                addTag(suggestion);
-                setShowSuggestions(false);
-              }}
+              key={category}
+              style={[
+                styles.categoryTab,
+                activeCategory === category && styles.activeCategoryTab
+              ]}
+              onPress={() => setActiveCategory(category)}
             >
-              <Text style={styles.suggestionText}>{suggestion}</Text>
+              <Text 
+                style={[
+                  styles.categoryTabText,
+                  activeCategory === category && styles.activeCategoryTabText
+                ]}
+              >
+                {category}
+              </Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
       )}
       
-      {/* Suggestions for quick selection */}
-      <Text style={styles.sectionTitle}>Suggestions (or type your own)</Text>
-      <View style={styles.quickTagsContainer}>
-        {SUGGESTIONS.slice(0, 15).map(tag => (
-          <TouchableOpacity
-            key={tag}
-            style={[
-              styles.quickTag,
-              selectedTags.includes(tag) && styles.quickTagSelected
-            ]}
-            onPress={() => {
-              if (selectedTags.includes(tag)) {
-                removeTag(tag);
-              } else {
-                addTag(tag);
-              }
-            }}
-          >
-            <Text 
-              style={[
-                styles.quickTagText,
-                selectedTags.includes(tag) && styles.quickTagTextSelected
-              ]}
-            >
-              {tag}
-            </Text>
-          </TouchableOpacity>
+      {/* Flavor Tags */}
+      <ScrollView 
+        style={styles.tagsScrollView}
+        nestedScrollEnabled={true}
+      >
+        {Object.entries(filteredCategories).map(([category, tags]) => (
+          <View key={category} style={styles.categorySection}>
+            {searchQuery ? (
+              <TouchableOpacity 
+                style={styles.categoryHeader}
+                onPress={() => toggleCategory(category)}
+              >
+                <Text style={styles.categoryTitle}>{category}</Text>
+                <Ionicons 
+                  name={expandedCategories[category] ? "chevron-up" : "chevron-down"} 
+                  size={18} 
+                  color="#8E2DE2" 
+                />
+              </TouchableOpacity>
+            ) : (
+              activeCategory === category && (
+                <Text style={styles.categoryTitle}>{category}</Text>
+              )
+            )}
+            
+            {((searchQuery && expandedCategories[category]) || 
+              (!searchQuery && activeCategory === category)) && (
+              <View style={styles.tagsContainer}>
+                {tags.map((tag, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.tagButton,
+                      selectedTags.includes(tag) && styles.selectedTagButton
+                    ]}
+                    onPress={() => toggleTag(tag)}
+                  >
+                    <Text 
+                      style={[
+                        styles.tagText,
+                        selectedTags.includes(tag) && styles.selectedTagButtonText
+                      ]}
+                    >
+                      {tag}
+                    </Text>
+                    {selectedTags.includes(tag) && (
+                      <Ionicons name="checkmark" size={14} color="#fff" style={styles.checkIcon} />
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
         ))}
-      </View>
-      
-      <Text style={styles.helpText}>
-        Tap to add suggestions, or enter your own flavor notes above. 
-        Tap on added tags to remove them.
-      </Text>
+      </ScrollView>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
+    marginVertical: 15,
   },
   label: {
     fontSize: 16,
     fontWeight: '500',
     marginBottom: 10,
   },
-  tagContainer: {
-    flexDirection: 'row',
-    flexWrap: 'nowrap',
-    marginBottom: 10,
+  selectedTagsScroll: {
+    maxHeight: 50,
   },
-  tag: {
-    backgroundColor: '#8E2DE2',
-    borderRadius: 20,
+  selectedTagsContainer: {
+    paddingVertical: 5,
+    paddingHorizontal: 5,
+  },
+  noTagsText: {
+    fontStyle: 'italic',
+    color: '#999',
+    paddingHorizontal: 5,
+  },
+  selectedTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(142, 45, 226, 0.1)',
+    borderRadius: 15,
     paddingHorizontal: 12,
     paddingVertical: 6,
     marginRight: 8,
-    marginBottom: 8,
+  },
+  selectedTagText: {
+    color: '#8E2DE2',
+    fontWeight: '500',
+    fontSize: 14,
+  },
+  removeIcon: {
+    marginLeft: 5,
+  },
+  searchContainer: {
+    marginVertical: 15,
+  },
+  searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    backgroundColor: '#f9f9f9',
   },
-  tagText: {
-    color: '#fff',
-    marginRight: 5,
+  searchIcon: {
+    marginRight: 8,
   },
-  tagIcon: {
-    marginLeft: 4,
+  searchInput: {
+    flex: 1,
+    paddingVertical: 10,
+    fontSize: 14,
   },
-  inputContainer: {
+  customTagContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
+    marginTop: 10,
   },
-  input: {
+  customTagInput: {
     flex: 1,
     borderWidth: 1,
     borderColor: '#ddd',
-    borderRadius: 6,
-    padding: 12,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     backgroundColor: '#f9f9f9',
-    fontSize: 15,
+    fontSize: 14,
   },
   addButton: {
-    padding: 8,
-    marginLeft: 8,
+    marginLeft: 10,
+    padding: 5,
   },
-  suggestions: {
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 6,
-    marginTop: -10,
-    marginBottom: 15,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  suggestion: {
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-  },
-  suggestionText: {
-    fontSize: 14,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '500',
+  categoryTabsScroll: {
+    maxHeight: 44,
     marginBottom: 10,
-    color: '#666',
   },
-  quickTagsContainer: {
+  categoryTab: {
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+    backgroundColor: '#f0f0f0',
+  },
+  activeCategoryTab: {
+    backgroundColor: '#8E2DE2',
+  },
+  categoryTabText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  activeCategoryTabText: {
+    color: '#fff',
+  },
+  tagsScrollView: {
+    maxHeight: 200,
+  },
+  categorySection: {
+    marginBottom: 15,
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  categoryTitle: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#444',
+    marginBottom: 8,
+  },
+  tagsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    paddingHorizontal: 5,
   },
-  quickTag: {
-    backgroundColor: '#f0f0f0',
-    borderRadius: 20,
+  tagButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 15,
     paddingHorizontal: 12,
     paddingVertical: 6,
     marginRight: 8,
     marginBottom: 8,
   },
-  quickTagSelected: {
-    backgroundColor: '#E9D5FF',
+  selectedTagButton: {
+    backgroundColor: '#8E2DE2',
   },
-  quickTagText: {
-    color: '#333',
-    fontSize: 12,
+  tagText: {
+    color: '#555',
+    fontSize: 13,
   },
-  quickTagTextSelected: {
-    color: '#8E2DE2',
-    fontWeight: '500',
+  selectedTagButtonText: {
+    color: '#fff',
   },
-  helpText: {
-    fontSize: 12,
-    color: '#666',
-    fontStyle: 'italic',
-    marginTop: 5,
+  checkIcon: {
+    marginLeft: 4,
   },
 });
+
+export default FlavorTagSelector;

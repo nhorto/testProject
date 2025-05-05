@@ -20,6 +20,7 @@ import wineries from '../../data/wineries_with_coordinates_and_id.json';
 import * as ImagePicker from 'expo-image-picker';
 import { Picker } from '@react-native-picker/picker';
 import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import { Linking } from 'react-native';
 
 // Import components
 import RatingSlider from '../../components/RatingSlider';
@@ -411,11 +412,11 @@ export default function WineryDetail() {
         {/* Instruction for user */}
         {!isEditingWine && winesTried.length > 1 && (
           <View style={styles.swipeInstructionContainer}>
-            <Text style={styles.swipeInstructionText}>
-              <Ionicons name="arrow-back" size={16} color="#666" /> Swipe to navigate between wines <Ionicons name="arrow-forward" size={16} color="#666" />
-            </Text>
-          </View>
-        )}
+          <Ionicons name="arrow-back" size={16} color="#666" />
+          <Text style={styles.swipeInstructionText}>Swipe to navigate between wines</Text>
+          <Ionicons name="arrow-forward" size={16} color="#666" />
+        </View>
+      )}
       </View>
     );
   };
@@ -494,7 +495,27 @@ export default function WineryDetail() {
               <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => {
-                  Alert.alert('Navigation', 'Opening directions...');
+                  const lat = winery.latitude;
+                  const lng = winery.longitude;
+                  const label = encodeURIComponent(winery.name || "Destination");
+                  
+                  if (Platform.OS === 'ios') {
+                    // iOS: Try Apple Maps first
+                    const appleMapsUrl = `http://maps.apple.com/?ll=${lat},${lng}&q=${label}`;
+                    Linking.openURL(appleMapsUrl).catch(() => {
+                      // Fallback to Google Maps web URL if Apple Maps fails
+                      const googleWebUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+                      Linking.openURL(googleWebUrl);
+                    });
+                  } else {
+                    // Android: Use Google Maps
+                    const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+                    Linking.openURL(googleMapsUrl).catch(() => {
+                      // Fallback to web URL
+                      const fallbackUrl = `https://maps.google.com/?q=${lat},${lng}`;
+                      Linking.openURL(fallbackUrl);
+                    });
+                  }
                 }}
               >
                 <Ionicons name="navigate" size={24} color="#8E2DE2" />
@@ -504,7 +525,7 @@ export default function WineryDetail() {
               <TouchableOpacity
                 style={styles.actionButton}
                 onPress={() => {
-                  Alert.alert('Website', `Opening ${winery.name} website...`);
+                  Alert.alert('Website', `Opening ${winery.name} website... (this is a placeholder untill we have their website)`);
                 }}
               >
                 <Ionicons name="globe" size={24} color="#8E2DE2" />
@@ -868,13 +889,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   swipeInstructionContainer: {
-    padding: 10,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 10,
   },
   swipeInstructionText: {
     color: '#666',
     fontSize: 14,
     fontStyle: 'italic',
+    marginHorizontal: 5,
   },
 })

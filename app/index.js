@@ -1,19 +1,28 @@
-// app/index.js (Landing Page)
-import { View, Text, Button, StyleSheet } from 'react-native';
+// app/index.js
+import { View, ActivityIndicator } from 'react-native';
+import { useContext, useEffect } from 'react';
 import { useRouter } from 'expo-router';
+import { AuthContext } from './_layout';
 
-export default function Landing() {
+export default function Index() {
+  const { user, isLoading } = useContext(AuthContext);
   const router = useRouter();
 
+  useEffect(() => {
+    // Only navigate after initial loading is complete
+    if (!isLoading) {
+      if (user) {
+        router.replace('/(tabs)/map');
+      } else {
+        router.replace('/login');
+      }
+    }
+  }, [user, isLoading, router]);
+
+  // Show loading indicator while determining route
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Welcome to WineApp!</Text>
-      <Button title="Enter" onPress={() => router.push('/(tabs)/map')} />
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <ActivityIndicator size="large" color="#8E2DE2" />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  title: { fontSize: 24, marginBottom: 20 },
-});

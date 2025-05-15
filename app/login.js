@@ -1,5 +1,4 @@
-// app/login.js
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import {
   View,
   Text,
@@ -11,50 +10,44 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Alert
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { AuthContext } from './_layout';
 
 export default function LoginScreen() {
   const router = useRouter();
+  const { signIn, isLoading } = useContext(AuthContext);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [localLoading, setLocalLoading] = useState(false);
 
-  // This is a placeholder function until Supabase is integrated
+  // Handle login with Supabase
   const handleLogin = async () => {
-    // Validate inputs
     if (!email || !password) {
-      alert('Please enter both email and password');
+      Alert.alert('Missing Information', 'Please enter both email and password.');
       return;
     }
 
-    setIsLoading(true);
-
-    // Simulate API call delay
-    setTimeout(() => {
-      setIsLoading(false);
-      // For now, just redirect to the main app
-      router.replace('/(tabs)/map');
-    }, 1500);
-
-    // When you integrate Supabase, you'll replace this with actual auth code:
-    /*
     try {
-      const { user, error } = await supabase.auth.signIn({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-      router.replace('/(tabs)/map');
+      setLocalLoading(true);
+      const { error } = await signIn({ email, password });
+      
+      if (error) {
+        Alert.alert('Login Failed', error);
+      } else {
+        // Successful login will trigger onAuthStateChange in _layout.js
+        // which will redirect to the main app
+        router.replace('/(tabs)/map');
+      }
     } catch (error) {
-      alert(error.message);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      console.error(error);
     } finally {
-      setIsLoading(false);
+      setLocalLoading(false);
     }
-    */
   };
 
   return (
@@ -64,13 +57,13 @@ export default function LoginScreen() {
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.logoContainer}>
-        <View style={styles.logoImageWrapper}>
+          <View style={styles.logoImageWrapper}>
             <Image
-                source={require('../assets/images/cork_and_note_logo.png')}
-                style={styles.logoImage}
-                resizeMode="contain"
+              source={require('../assets/images/cork_and_note_logo.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
             />
-            </View>
+          </View>
           <Text style={styles.appName}>Welcome to Cork & Note!</Text>
           <Text style={styles.tagline}>Discover Virginia's finest vineyards</Text>
         </View>
@@ -85,6 +78,7 @@ export default function LoginScreen() {
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
+              editable={!localLoading}
             />
           </View>
 
@@ -96,10 +90,12 @@ export default function LoginScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
+              editable={!localLoading}
             />
             <TouchableOpacity
               style={styles.visibilityIcon}
               onPress={() => setShowPassword(!showPassword)}
+              disabled={localLoading}
             >
               <Ionicons 
                 name={showPassword ? "eye-off" : "eye"} 
@@ -109,16 +105,20 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity style={styles.forgotPassword}>
+          <TouchableOpacity 
+            style={styles.forgotPassword}
+            disabled={localLoading}
+            onPress={() => router.push('/reset-password')}
+          >
             <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
             style={styles.loginButton} 
             onPress={handleLogin}
-            disabled={isLoading}
+            disabled={localLoading || isLoading}
           >
-            {isLoading ? (
+            {localLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.loginButtonText}>Log In</Text>
@@ -132,12 +132,20 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.socialButtonsContainer}>
-            <TouchableOpacity style={[styles.socialButton, styles.googleButton]}>
+            <TouchableOpacity 
+              style={[styles.socialButton, styles.googleButton]}
+              disabled={localLoading}
+              onPress={() => Alert.alert('Google Sign In', 'This feature will be implemented soon.')}
+            >
               <Ionicons name="logo-google" size={20} color="#fff" />
               <Text style={styles.socialButtonText}>Google</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={[styles.socialButton, styles.appleButton]}>
+            <TouchableOpacity 
+              style={[styles.socialButton, styles.appleButton]}
+              disabled={localLoading}
+              onPress={() => Alert.alert('Apple Sign In', 'This feature will be implemented soon.')}
+            >
               <Ionicons name="logo-apple" size={20} color="#fff" />
               <Text style={styles.socialButtonText}>Apple</Text>
             </TouchableOpacity>
@@ -146,7 +154,7 @@ export default function LoginScreen() {
 
         <View style={styles.registerContainer}>
           <Text style={styles.registerText}>Don't have an account? </Text>
-          <Link href="/register" asChild>
+          <Link href="/register" asChild disabled={localLoading}>
             <TouchableOpacity>
               <Text style={styles.registerLink}>Sign Up</Text>
             </TouchableOpacity>

@@ -1,20 +1,61 @@
-// app/(tabs)/profile.js (updated)
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useContext } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { AuthContext } from '../_layout';
 import { useRouter } from 'expo-router';
+import { supabase } from '../../lib/supabase';
 
 export default function ProfileScreen() {
   const { signOut, user } = useContext(AuthContext);
   const router = useRouter();
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const handleLogout = () => {
-    // Here you would integrate with Supabase
-    // await supabase.auth.signOut();
-    signOut();
-    router.replace('/login');
+  // Fetch user profile data from Supabase
+  useEffect(() => {
+    async function fetchProfile() {
+      if (!user) return;
+      
+      try {
+        setLoading(true);
+        
+        const { data, error } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+        
+        if (error) {
+          console.error('Error fetching profile:', error);
+        } else {
+          setProfile(data);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    fetchProfile();
+  }, [user]);
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      router.replace('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#8E2DE2" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -24,8 +65,8 @@ export default function ProfileScreen() {
             <Ionicons name="person" size={40} color="#fff" />
           </View>
         </View>
-        <Text style={styles.name}>User Name</Text>
-        <Text style={styles.email}>user@example.com</Text>
+        <Text style={styles.name}>{profile?.name || 'User Name'}</Text>
+        <Text style={styles.email}>{user?.email || 'user@example.com'}</Text>
       </View>
 
       <View style={styles.menuContainer}>
@@ -71,6 +112,12 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#fff',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: '#fff',
   },
   profileHeader: {

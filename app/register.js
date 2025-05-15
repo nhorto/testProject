@@ -1,5 +1,5 @@
-// app/register.js
-import React, { useState } from 'react';
+// app/register.js (updated)
+import React, { useState, useContext } from 'react';
 import {
   View,
   Text,
@@ -10,63 +10,66 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Alert
 } from 'react-native';
 import { useRouter, Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { AuthContext } from './_layout';
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const { signUp, isLoading } = useContext(AuthContext);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [localLoading, setLocalLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  // This is a placeholder function until Supabase is integrated
   const handleRegister = async () => {
     // Basic validation
     if (!name || !email || !password || !confirmPassword) {
-      alert('Please fill in all fields');
+      Alert.alert('Missing Information', 'Please fill in all fields');
       return;
     }
 
     if (password !== confirmPassword) {
-      alert('Passwords do not match');
+      Alert.alert('Password Mismatch', 'Passwords do not match');
       return;
     }
 
-    setIsLoading(true);
-
-    // Simulate API call delay
-    setTimeout(() => {
-      setIsLoading(false);
-      // For now, just redirect to the main app
-      router.replace('/(tabs)/map');
-    }, 1500);
-
-    // When you integrate Supabase, you'll replace this with:
-    /*
-    try {
-      const { user, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name,
-          }
-        }
-      });
-
-      if (error) throw error;
-      alert('Registration successful! Please check your email for confirmation.');
-      router.replace('/login');
-    } catch (error) {
-      alert(error.message);
-    } finally {
-      setIsLoading(false);
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address');
+      return;
     }
-    */
+
+    // Validate password strength (at least 6 characters)
+    if (password.length < 6) {
+      Alert.alert('Weak Password', 'Password must be at least 6 characters long');
+      return;
+    }
+
+    try {
+      setLocalLoading(true);
+      const { error } = await signUp({ email, password, name });
+      
+      if (error) {
+        Alert.alert('Registration Failed', error);
+      } else {
+        Alert.alert(
+          'Registration Successful',
+          'Please check your email for confirmation, then login.',
+          [{ text: 'OK', onPress: () => router.replace('/login') }]
+        );
+      }
+    } catch (error) {
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      console.error(error);
+    } finally {
+      setLocalLoading(false);
+    }
   };
 
   return (
@@ -75,12 +78,16 @@ export default function RegisterScreen() {
       style={styles.container}
     >
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity 
+          style={styles.backButton} 
+          onPress={() => router.back()}
+          disabled={localLoading}
+        >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
 
         <Text style={styles.title}>Create Account</Text>
-        <Text style={styles.subtitle}>Join WineApp to track your wine adventures</Text>
+        <Text style={styles.subtitle}>Join Cork & Note to track your wine adventures</Text>
 
         <View style={styles.formContainer}>
           <View style={styles.inputContainer}>
@@ -90,6 +97,7 @@ export default function RegisterScreen() {
               placeholder="Full Name"
               value={name}
               onChangeText={setName}
+              editable={!localLoading}
             />
           </View>
 
@@ -102,6 +110,7 @@ export default function RegisterScreen() {
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
+              editable={!localLoading}
             />
           </View>
 
@@ -113,10 +122,12 @@ export default function RegisterScreen() {
               value={password}
               onChangeText={setPassword}
               secureTextEntry={!showPassword}
+              editable={!localLoading}
             />
             <TouchableOpacity
               style={styles.visibilityIcon}
               onPress={() => setShowPassword(!showPassword)}
+              disabled={localLoading}
             >
               <Ionicons 
                 name={showPassword ? "eye-off" : "eye"} 
@@ -134,15 +145,16 @@ export default function RegisterScreen() {
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               secureTextEntry={!showPassword}
+              editable={!localLoading}
             />
           </View>
 
           <TouchableOpacity 
             style={styles.registerButton} 
             onPress={handleRegister}
-            disabled={isLoading}
+            disabled={localLoading || isLoading}
           >
-            {isLoading ? (
+            {localLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.registerButtonText}>Sign Up</Text>
@@ -156,12 +168,20 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.socialButtonsContainer}>
-            <TouchableOpacity style={[styles.socialButton, styles.googleButton]}>
+            <TouchableOpacity 
+              style={[styles.socialButton, styles.googleButton]}
+              disabled={localLoading}
+              onPress={() => Alert.alert('Google Sign Up', 'This feature will be implemented soon.')}
+            >
               <Ionicons name="logo-google" size={20} color="#fff" />
               <Text style={styles.socialButtonText}>Google</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={[styles.socialButton, styles.appleButton]}>
+            <TouchableOpacity 
+              style={[styles.socialButton, styles.appleButton]}
+              disabled={localLoading}
+              onPress={() => Alert.alert('Apple Sign Up', 'This feature will be implemented soon.')}
+            >
               <Ionicons name="logo-apple" size={20} color="#fff" />
               <Text style={styles.socialButtonText}>Apple</Text>
             </TouchableOpacity>
@@ -170,7 +190,7 @@ export default function RegisterScreen() {
 
         <View style={styles.loginContainer}>
           <Text style={styles.loginText}>Already have an account? </Text>
-          <Link href="/login" asChild>
+          <Link href="/login" asChild disabled={localLoading}>
             <TouchableOpacity>
               <Text style={styles.loginLink}>Log In</Text>
             </TouchableOpacity>

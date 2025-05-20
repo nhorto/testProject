@@ -1,3 +1,4 @@
+// app/reset-password.js (new file)
 import React, { useState } from 'react';
 import {
   View,

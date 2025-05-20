@@ -1,3 +1,4 @@
+// app/(tabs)/profile.js (updated)
 import { View, Text, StyleSheet, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useContext, useState, useEffect } from 'react';
